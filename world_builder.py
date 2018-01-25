@@ -9,6 +9,7 @@ import MalmoPython
 import os
 import sys
 import time
+import random
 
 if sys.version_info[0] == 2:
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)  # flush print output immediately
@@ -16,36 +17,28 @@ else:
     import functools
     print = functools.partial(print, flush=True)
 
-def Menger(xorg, yorg, zorg, size, blocktype, variant, holetype):
-    #draw solid chunk
-    genstring = GenCuboidWithVariant(xorg,yorg,zorg,xorg+size-1,yorg+size-1,zorg+size-1,blocktype,variant) + "\n"
-    #now remove holes
-    unit = size
-    while (unit >= 3):
-        w=old_div(unit,3)
-        for i in range(0, size, unit):
-            for j in range(0, size, unit):
-                x=xorg+i
-                y=yorg+j
-                genstring += GenCuboid(x+w,y+w,zorg,(x+2*w)-1,(y+2*w)-1,zorg+size-1,holetype) + "\n"
-                y=yorg+i
-                z=zorg+j
-                genstring += GenCuboid(xorg,y+w,z+w,xorg+size-1, (y+2*w)-1,(z+2*w)-1,holetype) + "\n"
-                genstring += GenCuboid(x+w,yorg,z+w,(x+2*w)-1,yorg+size-1,(z+2*w)-1,holetype) + "\n"
-        unit = w
+
+def Moguls(steps, delay, width, starting_x, starting_y, starting_z):
+    genstring = "\n"
+    y_offset = 0
+    for i in range(steps):
+        for n in range(width):
+            up_or_down = random.randint(0,1)
+            genstring += '<DrawBlock x="%d" y="%d" z="%d" type="grass"/>\n' % (i+starting_x, up_or_down+y_offset+starting_y, n+starting_z)
+            if up_or_down == 1:
+                # Fill in ugly holes
+                genstring += '<DrawBlock x="%d" y="%d" z="%d" type="dirt"/>\n' % (i+starting_x, up_or_down+y_offset+starting_y-1, n+starting_z)
+        if i%delay == 0:
+            # Push up base y-value every two steps
+            y_offset += 1
     return genstring
 
-def GenCuboid(x1, y1, z1, x2, y2, z2, blocktype):
-    return '<DrawCuboid x1="' + str(x1) + '" y1="' + str(y1) + '" z1="' + str(z1) + '" x2="' + str(x2) + '" y2="' + str(y2) + '" z2="' + str(z2) + '" type="' + blocktype + '"/>'
-
-def GenCuboidWithVariant(x1, y1, z1, x2, y2, z2, blocktype, variant):
-    return '<DrawCuboid x1="' + str(x1) + '" y1="' + str(y1) + '" z1="' + str(z1) + '" x2="' + str(x2) + '" y2="' + str(y2) + '" z2="' + str(z2) + '" type="' + blocktype + '" variant="' + variant + '"/>'
 
 missionXML='''<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
             <Mission xmlns="http://ProjectMalmo.microsoft.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
               <About>
-                <Summary>Hello world!</Summary>
+                <Summary>Staircase to Heaven!</Summary>
               </About>
 
             <ServerSection>
@@ -57,11 +50,10 @@ missionXML='''<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
                 <Weather>clear</Weather>
               </ServerInitialConditions>
               <ServerHandlers>
-                  <FlatWorldGenerator generatorString="3;7,44*49,73,35:1,159:4,95:13,35:13,159:11,95:10,159:14,159:6,35:6,95:6;12;"/>
+                  <FlatWorldGenerator generatorString="3;7,1,24;1;"/>
                   <DrawingDecorator>
-                    <DrawBlock x="0" y="56" z="0" type="diamond_block"/>
-                  </DrawingDecorator>
-                  <ServerQuitFromTimeUp timeLimitMs="30000"/>
+                    <DrawBlock x="0" y="2" z="0" type="diamond_block"/>''' + Moguls(50, 3, 3, 2, 2, -1) + Moguls(50, 2, 3, 2, 2, 3) + Moguls(50, 1, 3, 2, 2, 7) +'''</DrawingDecorator>
+                  <ServerQuitFromTimeUp timeLimitMs="1000"/>
                   <ServerQuitWhenAnyAgentFinishes/>
                 </ServerHandlers>
               </ServerSection>
@@ -69,9 +61,10 @@ missionXML='''<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
               <AgentSection mode="Survival">
                 <Name>MalmoTutorialBot</Name>
                 <AgentStart>
-                    <Placement x="0.5" y="56.0" z="0.5" yaw="90"/>
+                    <Placement x="0.5" y="3" z="0.5" yaw="-90"/>
                     <Inventory>
                         <InventoryItem slot="8" type="diamond_pickaxe"/>
+                        <InventoryItem slot="7" type="stone" quantity="64"/>
                     </Inventory>
                 </AgentStart>
                 <AgentHandlers>
@@ -129,7 +122,7 @@ while not world_state.has_mission_begun:
 print()
 print("Mission running ", end=' ')
 
-agent_host.sendCommand("hotbar.9 1")
+"""agent_host.sendCommand("hotbar.9 1")
 agent_host.sendCommand("hotbar.9 0")
 
 agent_host.sendCommand("pitch 0.2")
@@ -137,10 +130,12 @@ time.sleep(1)
 agent_host.sendCommand("pitch 0")
 agent_host.sendCommand("move 1")
 time.sleep(5)
-agent_host.sendCommand("attack 1")
+agent_host.sendCommand("move 0")
+time.sleep(2)
+agent_host.sendCommand("use 1")
 time.sleep(5)
 agent_host.sendCommand("attack 0")
-print("Done with commands")
+print("Done with commands")"""
 
 # Loop until mission ends:
 while world_state.is_mission_running:
