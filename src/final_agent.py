@@ -26,7 +26,7 @@ else:
 # Seed 5 is original
 # For slope of 1, seed 7 gets us in infinite loop.
 # Seed 25, slope 1 modified can be completed perfectly.
-random.seed(25)
+random.seed(5)
 
 def Moguls(steps, delay, width, starting_x, starting_y, starting_z):
     genstring = "\n"
@@ -68,7 +68,7 @@ missionXML='''<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
               <ServerHandlers>
                   <FlatWorldGenerator generatorString="3;7,1,24;1;"/>
                   <DrawingDecorator>
-                    <DrawBlock x="0" y="2" z="0" type="diamond_block"/>''' + Moguls(50, 1, 3, 2, 2, -1) + Moguls(50, 2, 3, 2, 2, 3) + Moguls(50, 3, 3, 2, 2, 7) +'''</DrawingDecorator>
+                    <DrawBlock x="0" y="2" z="0" type="diamond_block"/>''' + Moguls(50, 3, 3, 2, 2, -1) + Moguls(50, 2, 3, 2, 2, 3) + Moguls(50, 1, 3, 2, 2, 7) +'''</DrawingDecorator>
                   <ServerQuitFromTimeUp timeLimitMs="30000"/>
                   <ServerQuitWhenAnyAgentFinishes/>
                 </ServerHandlers>
