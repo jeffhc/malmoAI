@@ -2,9 +2,9 @@
 Using the Malmo environment and deep reinforcement learning/Q-learning to build a Minecraft agent.
 
 ## Dependencies
-Malmo
-Keras and Tensorflow
-Numpy
+* Malmo
+* Keras and Tensorflow
+* Numpy
 
 ## Instructions
 1. Install Malmo using the instructions on the [Github page](https://github.com/Microsoft/malmo).
