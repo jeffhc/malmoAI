@@ -1,24 +1,8 @@
 from __future__ import print_function
-# ------------------------------------------------------------------------------------------------
-# Copyright (c) 2016 Microsoft Corporation
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-# associated documentation files (the "Software"), to deal in the Software without restriction,
-# including without limitation the rights to use, copy, modify, merge, publish, distribute,
-# sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all copies or
-# substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-# NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-# ------------------------------------------------------------------------------------------------
+from __future__ import division
 
-# The "Cliff Walking" example using Q-learning.
+# Tackling the Tricky Arena challenge using Q-learning.
+# Built using a traditional q-learning algorithm
 # From pages 148-150 of:
 # Richard S. Sutton and Andrews G. Barto
 # Reinforcement Learning, An Introduction
@@ -37,16 +21,7 @@ import os
 import random
 import sys
 import time
-
-if sys.version_info[0] == 2:
-    # Workaround for https://github.com/PythonCharmers/python-future/issues/262
-    import Tkinter as tk
-else:
-    import tkinter as tk
-
-save_images = False
-if save_images:
-    from PIL import Image
+import tkinter as tk
 
 class TabQAgent(object):
     """Tabular Q-learning agent for discrete state/action spaces."""
@@ -163,13 +138,6 @@ class TabQAgent(object):
         prev_z = obs[u'ZPos']
         print('Initial position:',prev_x,',',prev_z)
 
-        if save_images:
-            # save the frame, for debugging
-            frame = world_state.video_frames[-1]
-            image = Image.frombytes('RGB', (frame.width, frame.height), str(frame.pixels) )
-            iFrame = 0
-            self.rep = self.rep + 1
-            image.save( 'saved_images/rep_' + str(self.rep).zfill(3) + '_saved_frame_' + str(iFrame).zfill(4) + '.png' )
 
         # take first action
         total_reward += self.act(world_state,agent_host,current_r)
@@ -309,7 +277,7 @@ agent_host = MalmoPython.AgentHost()
 
 # add some args
 agent_host.addOptionalStringArgument('mission_file',
-    'Path/to/file from which to load the mission.', 'cliff_walking_1.xml')
+    'Path/to/file from which to load the mission.', 'tricky_arena_1.xml')
 agent_host.addOptionalFloatArgument('alpha',
     'Learning rate of the Q-learning agent.', 0.1)
 agent_host.addOptionalFloatArgument('epsilon',
@@ -329,103 +297,89 @@ if agent_host.receivedArgument("help"):
     print(agent_host.getUsage())
     exit(0)
 
-if agent_host.receivedArgument("test"):
-    exit(0) # can't test any further because mission_file path unknowable TODO: find a way to run this sample as an integration test
-
 # -- set up the python-side drawing -- #
 scale = 40
-world_x = 6
-world_y = 14
+world_x = 42
+world_y = 42
 root = tk.Tk()
 root.wm_title("Q-table")
 canvas = tk.Canvas(root, width=world_x*scale, height=world_y*scale, borderwidth=0, highlightthickness=0, bg="black")
 canvas.grid()
 root.update()
 
-if agent_host.receivedArgument("test"):
-    num_maps = 1
-else:
-    num_maps = 30000
+# -- set up the agent -- #
+actionSet = ["movenorth 1", "movesouth 1", "movewest 1", "moveeast 1"]
 
-for imap in range(num_maps):
+agent = TabQAgent(
+    actions=actionSet,
+    epsilon=agent_host.getFloatArgument('epsilon'),
+    alpha=agent_host.getFloatArgument('alpha'),
+    gamma=agent_host.getFloatArgument('gamma'),
+    debug = agent_host.receivedArgument("debug"),
+    canvas = canvas,
+    root = root)
 
-    # -- set up the agent -- #
-    actionSet = ["movenorth 1", "movesouth 1", "movewest 1", "moveeast 1"]
+# -- set up the mission -- #
+mission_file = agent_host.getStringArgument('mission_file')
+with open(mission_file, 'r') as f:
+    print("Loading mission from %s" % mission_file)
+    mission_xml = f.read()
+    my_mission = MalmoPython.MissionSpec(mission_xml, True)
+my_mission.removeAllCommandHandlers()
+my_mission.allowAllDiscreteMovementCommands()
+my_mission.requestVideo( 320, 240 )
+my_mission.setViewpoint( 1 )
 
-    agent = TabQAgent(
-        actions=actionSet,
-        epsilon=agent_host.getFloatArgument('epsilon'),
-        alpha=agent_host.getFloatArgument('alpha'),
-        gamma=agent_host.getFloatArgument('gamma'),
-        debug = agent_host.receivedArgument("debug"),
-        canvas = canvas,
-        root = root)
+my_clients = MalmoPython.ClientPool()
+my_clients.add(MalmoPython.ClientInfo('127.0.0.1', 10000)) # add Minecraft machines here as available
 
-    # -- set up the mission -- #
-    mission_file = agent_host.getStringArgument('mission_file')
-    with open(mission_file, 'r') as f:
-        print("Loading mission from %s" % mission_file)
-        mission_xml = f.read()
-        my_mission = MalmoPython.MissionSpec(mission_xml, True)
-    my_mission.removeAllCommandHandlers()
-    my_mission.allowAllDiscreteMovementCommands()
-    my_mission.requestVideo( 320, 240 )
-    my_mission.setViewpoint( 1 )
-    # add holes for interest
-    #for z in range(2,12,2):
-    #    x = random.randint(1,3)
-    #    my_mission.drawBlock( x,45,z,"lava")
+max_retries = 3
+agentID = 0
+expID = 'tabular_q_learning'
 
-    my_clients = MalmoPython.ClientPool()
-    my_clients.add(MalmoPython.ClientInfo('127.0.0.1', 10000)) # add Minecraft machines here as available
+num_repeats = 150
+cumulative_rewards = []
+for i in range(num_repeats):
 
-    max_retries = 3
-    agentID = 0
-    expID = 'tabular_q_learning'
+    print("\nMission %d of %d:" % ( i+1, num_repeats ))
 
-    num_repeats = 150
-    cumulative_rewards = []
-    for i in range(num_repeats):
+    my_mission_record = MalmoPython.MissionRecordSpec( "./save_%s-map%d-rep%d.tgz" % (expID, 0, i) )
+    my_mission_record.recordCommands()
+    my_mission_record.recordMP4(20, 400000)
+    my_mission_record.recordRewards()
+    my_mission_record.recordObservations()
 
-        print("\nMap %d - Mission %d of %d:" % ( imap, i+1, num_repeats ))
+    for retry in range(max_retries):
+        try:
+            agent_host.startMission( my_mission, my_clients, my_mission_record, agentID, "%s-%d" % (expID, i) )
+            break
+        except RuntimeError as e:
+            if retry == max_retries - 1:
+                print("Error starting mission:",e)
+                exit(1)
+            else:
+                time.sleep(2.5)
 
-        my_mission_record = MalmoPython.MissionRecordSpec( "./save_%s-map%d-rep%d.tgz" % (expID, imap, i) )
-        my_mission_record.recordCommands()
-        my_mission_record.recordMP4(20, 400000)
-        my_mission_record.recordRewards()
-        my_mission_record.recordObservations()
-
-        for retry in range(max_retries):
-            try:
-                agent_host.startMission( my_mission, my_clients, my_mission_record, agentID, "%s-%d" % (expID, i) )
-                break
-            except RuntimeError as e:
-                if retry == max_retries - 1:
-                    print("Error starting mission:",e)
-                    exit(1)
-                else:
-                    time.sleep(2.5)
-
-        print("Waiting for the mission to start", end=' ')
+    print("Waiting for the mission to start", end=' ')
+    world_state = agent_host.getWorldState()
+    while not world_state.has_mission_begun:
+        print(".", end="")
+        time.sleep(0.1)
         world_state = agent_host.getWorldState()
-        while not world_state.has_mission_begun:
-            print(".", end="")
-            time.sleep(0.1)
-            world_state = agent_host.getWorldState()
-            for error in world_state.errors:
-                print("Error:",error.text)
-        print()
-
-        # -- run the agent in the world -- #
-        cumulative_reward = agent.run(agent_host)
-        print('Cumulative reward: %d' % cumulative_reward)
-        cumulative_rewards += [ cumulative_reward ]
-
-        # -- clean up -- #
-        time.sleep(0.5) # (let the Mod reset)
-
-    print("Done.")
-
+        for error in world_state.errors:
+            print("Error:",error.text)
     print()
-    print("Cumulative rewards for all %d runs:" % num_repeats)
-    print(cumulative_rewards)
+
+    # -- run the agent in the world -- #
+    cumulative_reward = agent.run(agent_host)
+    print('Cumulative reward: %d' % cumulative_reward)
+    cumulative_rewards += [ cumulative_reward ]
+
+    # -- clean up -- #
+    time.sleep(0.5) # (let the Mod reset)
+
+print("Done.")
+
+print()
+print("Cumulative rewards for all %d runs:" % num_repeats)
+print(cumulative_rewards)

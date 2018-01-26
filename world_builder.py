@@ -17,6 +17,7 @@ else:
     import functools
     print = functools.partial(print, flush=True)
 
+random.seed(5)
 
 def Moguls(steps, delay, width, starting_x, starting_y, starting_z):
     genstring = "\n"
@@ -127,27 +128,17 @@ while not world_state.has_mission_begun:
 print()
 print("Mission running ", end=' ')
 
-"""agent_host.sendCommand("hotbar.9 1")
-agent_host.sendCommand("hotbar.9 0")
 
-agent_host.sendCommand("pitch 0.2")
-time.sleep(1)
-agent_host.sendCommand("pitch 0")
-agent_host.sendCommand("move 1")
-time.sleep(5)
-agent_host.sendCommand("move 0")
-time.sleep(2)
-agent_host.sendCommand("use 1")
-time.sleep(5)
-agent_host.sendCommand("attack 0")
-print("Done with commands")"""
-agent_host.sendCommand("turn -1")
-time.sleep(1)
-agent_host.sendCommand("turn 0")
-agent_host.sendCommand("move 1")
-agent_host.sendCommand("move 0")
-agent_host.sendCommand("move 1")
-time.sleep(5)
+# Action tests
+agent.sendCommand("pitch -0.5")
+time.sleep(0.5)
+agent.sendCommand("pitch 0")
+agent.sendCommand("attack 1")
+time.sleep(3)
+agent.sendCommand("attack 0")
+world_state = agent_host.peekWorldState()
+print(world_state)
+
 
 # Loop until mission ends:
 while world_state.is_mission_running:
