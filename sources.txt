@@ -9,3 +9,4 @@ https://studywolf.wordpress.com/2012/11/25/reinforcement-learning-q-learning-and
 
 http://microsoft.github.io/malmo/0.30.0/Schemas/MissionHandlers.html#type_ContinuousMovementCommand
 http://microsoft.github.io/malmo/0.30.0/Schemas/Mission.html
+http://microsoft.github.io/malmo/0.30.0/Schemas/MissionHandlers.html#type_DiscreteMovementCommand

@@ -14,13 +14,7 @@ print("Loaded model from disk")
 
 loaded_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-prediction = loaded_model.predict(np.asarray([[3,2,1,1]])) # answer is 5
+prediction = loaded_model.predict(np.asarray([[2, 3, 2, 3]])) # answer is 5
 biggest = int(np.amax(prediction))
-prediction = list(prediction)
-answer = 0
-for i, value in enumerate(prediction):
-    if np.all(value-biggest) < 0.00000001:
-        answer = i
-        print("found")
-
+answer = np.argmax(prediction)
 print("Answer:", str(answer))

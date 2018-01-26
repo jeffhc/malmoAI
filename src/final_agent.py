@@ -23,7 +23,10 @@ else:
     import functools
     print = functools.partial(print, flush=True)
 
-random.seed(5)
+# Seed 5 is original
+# For slope of 1, seed 7 gets us in infinite loop.
+# Seed 25, slope 1 modified can be completed perfectly.
+random.seed(25)
 
 def Moguls(steps, delay, width, starting_x, starting_y, starting_z):
     genstring = "\n"
@@ -37,9 +40,10 @@ def Moguls(steps, delay, width, starting_x, starting_y, starting_z):
             if n == (width-1) and all_up:
                 up_or_down = 0
             genstring += '<DrawBlock x="%d" y="%d" z="%d" type="grass"/>\n' % (i+starting_x, up_or_down+y_offset+starting_y, n+starting_z)
-            if up_or_down == 1:
-                # Fill in ugly holes
-                genstring += '<DrawBlock x="%d" y="%d" z="%d" type="dirt"/>\n' % (i+starting_x, up_or_down+y_offset+starting_y-1, n+starting_z)
+            # NOTE: ALLOW FRAME COUNTER TO WORK AND Fill in ugly holes
+            genstring += '<DrawBlock x="%d" y="%d" z="%d" type="dirt"/>\n' % (i+starting_x, up_or_down+y_offset+starting_y-1, n+starting_z)
+            genstring += '<DrawBlock x="%d" y="%d" z="%d" type="dirt"/>\n' % (i+starting_x, up_or_down+y_offset+starting_y-2, n+starting_z)
+            genstring += '<DrawBlock x="%d" y="%d" z="%d" type="dirt"/>\n' % (i+starting_x, up_or_down+y_offset+starting_y-3, n+starting_z)
         if i%delay == 0:
             # Push up base y-value every two steps
             y_offset += 1
@@ -64,7 +68,7 @@ missionXML='''<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
               <ServerHandlers>
                   <FlatWorldGenerator generatorString="3;7,1,24;1;"/>
                   <DrawingDecorator>
-                    <DrawBlock x="0" y="2" z="0" type="diamond_block"/>''' + Moguls(50, 3, 3, 2, 2, -1) + Moguls(50, 2, 3, 2, 2, 3) + Moguls(50, 1, 3, 2, 2, 7) +'''</DrawingDecorator>
+                    <DrawBlock x="0" y="2" z="0" type="diamond_block"/>''' + Moguls(50, 1, 3, 2, 2, -1) + Moguls(50, 2, 3, 2, 2, 3) + Moguls(50, 3, 3, 2, 2, 7) +'''</DrawingDecorator>
                   <ServerQuitFromTimeUp timeLimitMs="30000"/>
                   <ServerQuitWhenAnyAgentFinishes/>
                 </ServerHandlers>
@@ -161,6 +165,16 @@ def between(a, x, b):
     else:
         return False
 
+def smallest(sequence):
+    """return the minimum nonzero element of sequence"""
+    for i in sequence:
+        if i != 0:
+            low = i # need to start with some value
+    for i in sequence:
+        if i != 0 and i < low:
+            low = i
+    return low
+
 def filterGrid(a, b, c, d, master_grid):
     new_master_grid = []
     for grid in master_grid:
@@ -185,7 +199,7 @@ def get_state(grid1, grid2, grid3, grid4, yaw):
         direction = "south"
     else:
         print("UNKNOWN DIRECTION")
-    print(direction)
+    #print(direction)
 
     master_grid = [grid1, grid2, grid3, grid4]
     state = []
@@ -205,9 +219,58 @@ def get_state(grid1, grid2, grid3, grid4, yaw):
         for index, block in enumerate(layer):
             if block != "air":
                 frame[index] += 1
-    return frame
 
-# Initialize Keras network
+    # Make it relative. Lowest nonzero block becomes
+    # 1, everything scales down by that. Zeros remain.
+    reference_point = smallest(frame) - 1
+    if reference_point > 0: # Only get those that need to be relative. (non-early steps)
+        _frame = []
+        for i in frame:
+            if i != 0:
+                _frame.append( i - reference_point )
+            else:
+                _frame.append(0)
+        frame = _frame
+
+    return direction, frame
+
+
+#### Initialize Keras network
+# load json and create model
+json_file = open('model.json', 'r')
+loaded_model_json = json_file.read()
+json_file.close()
+loaded_model = model_from_json(loaded_model_json)
+# load weights into new model
+loaded_model.load_weights("model.h5")
+print("Loaded model from disk")
+loaded_model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+
+def move(x, y, z, direction, action):
+    # TODO: DIRECTIONS ARE ALL SCREWED UP
+    if action == 0:
+        print("Player doing nothing")
+    elif action == 1:
+        agent_host.sendCommand("strafe -1")
+        print("Moving foward")
+    elif action == 2:
+        agent_host.sendCommand("move -1")
+        print("Moving left")
+    elif action == 3:
+        agent_host.sendCommand("move 1")
+        print("Moving right")
+    elif action == 4:
+        agent_host.sendCommand("jumpstrafe -1")
+        print("Forward Jump")
+    elif action == 5:
+        agent_host.sendCommand("jumpmove -1")
+        print("Left Jump")
+    elif action == 6:
+        agent_host.sendCommand("jumpmove 1")
+        print("Right Jump")
+    else:
+        print("Unknown output from Keras network")
 
 # Loop until mission ends:
 while world_state.is_mission_running:
@@ -223,9 +286,13 @@ while world_state.is_mission_running:
         grid2 = observations.get(u'floor2', 0)                 # and get the grid we asked for
         grid3 = observations.get(u'floor3', 0)                 # and get the grid we asked for
         grid4 = observations.get(u'floor4', 0)                 # and get the grid we asked for
-        state = get_state(grid1, grid2, grid3, grid4, observations.get(u'Yaw', 0))
+        direction, state = get_state(grid1, grid2, grid3, grid4, observations.get(u'Yaw', 0))
         pprint.pprint(state)
-        
+        # Send state to keras network, which then evaluates action.
+        prediction = loaded_model.predict(np.asarray([state]))
+        action = np.argmax(prediction)
+        print(action)
+        move(observations.get(u'XPos', 0), observations.get(u'YPos', 0), observations.get(u'ZPos', 0), direction, action)
 
 print()
 print("Mission ended")
