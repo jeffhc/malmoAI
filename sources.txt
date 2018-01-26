@@ -1,0 +1,11 @@
+SOURCES CITED
+
+
+
+http://outlace.com/rlpart3.html
+https://machinelearningmastery.com/tutorial-first-neural-network-python-keras/
+https://machinelearningmastery.com/save-load-keras-deep-learning-models/
+https://studywolf.wordpress.com/2012/11/25/reinforcement-learning-q-learning-and-exploration/
+
+http://microsoft.github.io/malmo/0.30.0/Schemas/MissionHandlers.html#type_ContinuousMovementCommand
+http://microsoft.github.io/malmo/0.30.0/Schemas/Mission.html
