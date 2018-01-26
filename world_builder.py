@@ -22,8 +22,13 @@ def Moguls(steps, delay, width, starting_x, starting_y, starting_z):
     genstring = "\n"
     y_offset = 0
     for i in range(steps):
+        all_up = True # Helps prevent impossibly routes
         for n in range(width):
             up_or_down = random.randint(0,1)
+            if up_or_down == 0:
+                all_up = False
+            if n == (width-1) and all_up:
+                up_or_down = 0
             genstring += '<DrawBlock x="%d" y="%d" z="%d" type="grass"/>\n' % (i+starting_x, up_or_down+y_offset+starting_y, n+starting_z)
             if up_or_down == 1:
                 # Fill in ugly holes
@@ -53,7 +58,7 @@ missionXML='''<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
                   <FlatWorldGenerator generatorString="3;7,1,24;1;"/>
                   <DrawingDecorator>
                     <DrawBlock x="0" y="2" z="0" type="diamond_block"/>''' + Moguls(50, 3, 3, 2, 2, -1) + Moguls(50, 2, 3, 2, 2, 3) + Moguls(50, 1, 3, 2, 2, 7) +'''</DrawingDecorator>
-                  <ServerQuitFromTimeUp timeLimitMs="1000"/>
+                  <ServerQuitFromTimeUp timeLimitMs="30000"/>
                   <ServerQuitWhenAnyAgentFinishes/>
                 </ServerHandlers>
               </ServerSection>
@@ -136,6 +141,13 @@ agent_host.sendCommand("use 1")
 time.sleep(5)
 agent_host.sendCommand("attack 0")
 print("Done with commands")"""
+agent_host.sendCommand("turn -1")
+time.sleep(1)
+agent_host.sendCommand("turn 0")
+agent_host.sendCommand("move 1")
+agent_host.sendCommand("move 0")
+agent_host.sendCommand("move 1")
+time.sleep(5)
 
 # Loop until mission ends:
 while world_state.is_mission_running:
